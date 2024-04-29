@@ -8,11 +8,12 @@ Core components for emoji.
 
 import re
 import unicodedata
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Callable, Iterator, List, Optional, Tuple, Union, cast
 from typing_extensions import Literal, Match, TypedDict
 
 from emoji import unicode_codes
-from emoji.tokenizer import Token, EmojiMatch, EmojiMatchZWJ, EmojiMatchZWJNonRGI, tokenize, filter_tokens
+from emoji.tokenizer import EmojiDetailsCopyT, Token, EmojiMatch, EmojiMatchZWJ, EmojiMatchZWJNonRGI, tokenize, filter_tokens
+from emoji.unicode_codes.data_dict import LanguagesT
 
 __all__ = [
     'emojize', 'demojize', 'analyze', 'config',
@@ -73,9 +74,9 @@ def emojize(
         string: str,
         delimiters: Tuple[str, str] = (_DEFAULT_DELIMITER, _DEFAULT_DELIMITER),
         variant: Optional[Literal['text_type', 'emoji_type']] = None,
-        language: str = 'en',
+        language: Union[LanguagesT, Literal['alias']] = 'en',
         version: Optional[float] = None,
-        handle_version: Optional[Union[str, Callable[[str, Dict[str, str]], str]]] = None
+        handle_version: Optional[Union[str, Callable[[str, EmojiDetailsCopyT], str]]] = None
 ) -> str:
     """
     Replace emoji names in a string with Unicode codes.
@@ -139,7 +140,7 @@ def emojize(
 
         if version is not None and unicode_codes.EMOJI_DATA[emj]['E'] > version:
             if callable(handle_version):
-                emj_data = unicode_codes.EMOJI_DATA[emj].copy()
+                emj_data = cast(EmojiDetailsCopyT, unicode_codes.EMOJI_DATA[emj].copy())
                 emj_data['match_start'] = match.start()
                 emj_data['match_end'] = match.end()
                 return handle_version(emj, emj_data)
@@ -186,9 +187,9 @@ def analyze(string: str, non_emoji: bool = False, join_emoji: bool = True) -> It
 def demojize(
         string: str,
         delimiters: Tuple[str, str] = (_DEFAULT_DELIMITER, _DEFAULT_DELIMITER),
-        language: str = 'en',
+        language: Union[LanguagesT, Literal['alias']] = 'en',
         version: Optional[float] = None,
-        handle_version: Optional[Union[str, Callable[[str, Dict[str, str]], str]]] = None
+        handle_version: Optional[Union[str, Callable[[str, EmojiDetailsCopyT], str]]] = None
 ) -> str:
     """
     Replace Unicode emoji in a string with emoji shortcodes. Useful for storage.
@@ -256,7 +257,7 @@ def demojize(
 
 def replace_emoji(
         string: str,
-        replace: Union[str, Callable[[str, Dict[str, str]], str]] = '',
+        replace: Union[str, Callable[[str, EmojiDetailsCopyT], str]] = '',
         version: float = -1
 ) -> str:
     """
@@ -369,7 +370,7 @@ def version(string: str) -> float:
     # Try to find first emoji in string
     version: List[float] = []
 
-    def f(e: str, emoji_data: Dict[str, Any]) -> str:
+    def f(e: str, emoji_data: EmojiDetailsCopyT) -> str:
         version.append(emoji_data['E'])
         return ''
     replace_emoji(string, replace=f, version=-1)

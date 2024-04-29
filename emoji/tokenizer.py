@@ -5,14 +5,22 @@ emoji.tokenizer
 Components for detecting and tokenizing emoji in strings.
 
 """
-from typing import List, NamedTuple, Dict, Optional, Union, Iterator, Any
+from typing import List, NamedTuple, Dict, Optional, Union, Iterator, Any, cast
+from typing_extensions import NotRequired
 from emoji import unicode_codes
+from emoji.unicode_codes.data_dict import EmojiDetailsT
 
 
 __all__ = [
     'EmojiMatch', 'EmojiMatchZWJ', 'EmojiMatchZWJNonRGI', 'Token',
     'tokenize', 'filter_tokens',
 ]
+
+class _EmojiDetailsCopyT(EmojiDetailsT, total=False):
+    match_start: NotRequired[int]
+    match_end: NotRequired[int]
+
+EmojiDetailsCopyT = Union[_EmojiDetailsCopyT, Dict[str, int]]
 
 _ZWJ = '\u200D'
 _SEARCH_TREE: Optional[Dict[str, Any]] = None
@@ -26,8 +34,12 @@ class EmojiMatch:
 
     __slots__ = ('emoji', 'start', 'end', 'data')
 
-    def __init__(self, emoji: str, start: int,
-                 end: int, data: Union[Dict[str, Any], None]):
+    def __init__(self,
+        emoji: str,
+        start: int,
+        end: int,
+        data: Optional[EmojiDetailsT]
+    ):
 
         self.emoji = emoji
         """The emoji substring"""
@@ -41,13 +53,13 @@ class EmojiMatch:
         self.data = data
         """The entry from :data:`EMOJI_DATA` for this emoji or ``None`` if the emoji is non-RGI"""
 
-    def data_copy(self) -> Dict[str, Any]:
+    def data_copy(self) -> EmojiDetailsCopyT:
         """
         Returns a copy of the data from :data:`EMOJI_DATA` for this match
         with the additional keys ``match_start`` and ``match_end``.
         """
         if self.data:
-            emj_data = self.data.copy()
+            emj_data = cast(EmojiDetailsCopyT, self.data.copy())
             emj_data['match_start'] = self.start
             emj_data['match_end'] = self.end
             return emj_data
