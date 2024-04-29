@@ -3,6 +3,7 @@
 
 import re
 import emoji
+from emoji.unicode_codes.data_dict import LanguagesT
 
 
 def test_all_languages_list():
@@ -25,7 +26,7 @@ def test_emoji_versions():
         assert v >= 0.6
 
 
-def check_duplicate_names(lang: str):
+def check_duplicate_names(lang: LanguagesT):
     """Check that there are no duplicate names in the fully_qualified except for different variants"""
     seen = {}
     for item in emoji.EMOJI_DATA.values():

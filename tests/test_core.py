@@ -2,11 +2,14 @@
 
 import random
 import re
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Callable, Dict, Iterator, List, Tuple, Union
 from typing_extensions import Literal
+from emoji.tokenizer import EmojiDetailsCopyT
 import emoji.unicode_codes
 import pytest
 import unicodedata
+
+from emoji.unicode_codes.data_dict import EmojiDetailsT, LanguagesT
 
 _NormalizationForm = Literal['NFC', 'NFD', 'NFKC', 'NFKD']
 
@@ -21,7 +24,7 @@ def ascii(s: str) -> str:
     return s.encode("unicode-escape").decode()
 
 
-def all_language_and_alias_packs():
+def all_language_and_alias_packs() -> Iterator[Tuple[Union[LanguagesT, Literal['alias']], Dict[str, str]]]:
     yield ('alias', emoji.unicode_codes.get_aliases_unicode_dict())
 
     for lang_code in emoji.LANGUAGES:
@@ -201,13 +204,19 @@ def test_emojize_version():
 
     assert emoji.emojize("Biking :man_biking: is in 4.0", version=3.0, handle_version='<emoji>') == "Biking <emoji> is in 4.0"
     assert emoji.emojize("Biking :man_biking: is in 4.0", version=3.0, handle_version=lambda e, data: '<emoji>') == "Biking <emoji> is in 4.0"
-    assert emoji.emojize("Biking :man_biking: is in 4.0", version=3.0, handle_version=lambda e, data: data["fr"]) == "Biking :cycliste_homme: is in 4.0"
 
-    def f(emj: str, data: Dict[str, str]) -> str:
+    def hv1(emj: str, data: EmojiDetailsCopyT) -> str:
+        e = data["fr"]
+        assert isinstance(e, str)
+        return e
+
+    assert emoji.emojize("Biking :man_biking: is in 4.0", version=3.0, handle_version=hv1) == "Biking :cycliste_homme: is in 4.0"
+
+    def hv2(emj: str, data: EmojiDetailsCopyT) -> str:
         assert data['E'] == 5
         return ''
 
-    assert emoji.emojize(':bowl_with_spoon:', version=-1, handle_version=f) == ''
+    assert emoji.emojize(':bowl_with_spoon:', version=-1, handle_version=hv2) == ''
     assert emoji.emojize(':bowl_with_spoon:') == '\U0001F963'
     assert emoji.emojize(':bowl_with_spoon:', version=4) == ''
     assert emoji.emojize(':bowl_with_spoon:', version=4.9) == ''
@@ -353,7 +362,7 @@ def test_replace_emoji():
     assert emoji.replace_emoji('Hello 🇫🇷👌') == 'Hello '
     assert emoji.replace_emoji('Hello 🇫🇷👌', 'x') == 'Hello xx'
 
-    def replace(emj: str, data: Dict[str, str]) -> str:
+    def replace(emj: str, data: EmojiDetailsCopyT) -> str:
         assert emj in ["🇫🇷", "👌"]
         return 'x'
     assert emoji.replace_emoji('Hello 🇫🇷👌', replace) == 'Hello xx'
@@ -416,13 +425,13 @@ Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu 
 Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 """
 
-    def default_select(emj_data: Dict[str, Any]) -> str:
+    def default_select(emj_data: EmojiDetailsT) -> str:
         return emj_data['en']
 
     def add_random_emoji(
         text: str,
-        lst: List[Tuple[str, Dict[str, Any]]],
-        select: Callable[[Dict[str, Any]], Union[str, Literal[False]]] = default_select
+        lst: List[Tuple[str, EmojiDetailsT]],
+        select: Callable[[EmojiDetailsT], Union[str, Literal[False]]] = default_select
     ) -> Tuple[str, str, List[str]]:
 
         emoji_list: List[str] = []
@@ -471,7 +480,7 @@ Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deseru
         assert lis['emoji'] == emoji_list[i]
 
     # qualified emoji from "es"
-    def select_es(emj_data: Dict[str, Any]) -> Union[str, Literal[False]]:
+    def select_es(emj_data: EmojiDetailsT) -> Union[str, Literal[False]]:
         return emj_data["es"] if "es" in emj_data else False
 
     text_with_unicode, text_with_placeholder, emoji_list = add_random_emoji(text, qualified_emoji_list, select=select_es)
@@ -484,7 +493,7 @@ Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deseru
         assert lis['emoji'] == emoji_list[i]
 
     # qualified emoji from "alias"
-    def select_alias(emj_data: Dict[str, Any]) -> Union[str, Literal[False]]:
+    def select_alias(emj_data: EmojiDetailsT) -> Union[str, Literal[False]]:
         return emj_data["alias"][0] if "alias" in emj_data else False
 
     text_with_unicode, text_with_placeholder, emoji_list = add_random_emoji(text, qualified_emoji_list, select=select_alias)
